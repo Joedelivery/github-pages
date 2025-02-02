@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Mileage Cost Calculator</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+      max-width: 600px;
+    }
+    h1 {
+      margin-bottom: 20px;
+    }
+    .form-section {
+      margin-bottom: 20px;
+    }
+    label {
+      display: inline-block;
+      width: 150px;
+      font-weight: bold;
+      margin-top: 5px;
+    }
+    input[type="text"],
+    input[type="number"],
+    input[type="date"],
+    input[type="time"] {
+      width: 250px;
+      margin-bottom: 10px;
+      padding: 5px;
+    }
+    button {
+      padding: 10px 15px;
+      cursor: pointer;
+      font-size: 1rem;
+    }
+    .result {
+      margin-top: 20px;
+      padding: 10px;
+      border: 1px solid #ccc;
+      display: none;
+    }
+    .result h3 {
+      margin-top: 0;
+    }
+  </style>
+</head>
+<body>
+  <h1>Mileage Cost Calculator</h1>
+
+  <!-- COLLECTION DETAILS -->
+  <div class="form-section">
+    <label for="collection-address">Collection Address:</label>
+    <input type="text" id="collection-address" placeholder="Enter collection address" /><br />
+
+    <label for="collection-contact">Collection Contact #:</label>
+    <input type="text" id="collection-contact" placeholder="Collection phone number" /><br />
+
+    <label for="collection-date">Collection Date:</label>
+    <input type="date" id="collection-date" /><br />
+
+    <label for="collection-time">Collection Time:</label>
+    <input type="time" id="collection-time" />
+  </div>
+
+  <!-- DELIVERY DETAILS -->
+  <div class="form-section">
+    <label for="delivery-address">Delivery Address:</label>
+    <input type="text" id="delivery-address" placeholder="Enter delivery address" /><br />
+
+    <label for="delivery-contact">Delivery Contact #:</label>
+    <input type="text" id="delivery-contact" placeholder="Delivery phone number" />
+  </div>
+
+  <!-- ITEM DETAILS -->
+  <div class="form-section">
+    <label for="item-type">Item Type:</label>
+    <input type="text" id="item-type" placeholder="e.g. Sofa, TV..." /><br />
+
+    <label for="item-quantity">Item Quantity:</label>
+    <input type="number" id="item-quantity" min="1" value="1" />
+  </div>
+
+  <!-- CALCULATE BUTTON -->
+  <button onclick="calculateCost()">Calculate Cost</button>
+
+  <!-- RESULTS SECTION -->
+  <div class="result" id="result-section">
+    <h3>Calculation Results</h3>
+    <p id="distance-result"></p>
+    <p id="time-result"></p>
+    <p id="cost-1man"></p>
+    <p id="cost-2men"></p>
+  </div>
+
+  <!-- LOAD GOOGLE MAPS JAVASCRIPT API -->
+  <!-- Replace 'YOUR_API_KEY_HERE' with your actual Google Maps API key -->
+  <script async
+    src="https://maps.googleapis.com/maps/api/js?key=YOUR_API_KEY_HERE&libraries=places">
+  </script>
+
+  <script>
+    function calculateCost() {
+      const collectionAddress = document.getElementById('collection-address').value.trim();
+      const deliveryAddress = document.getElementById('delivery-address').value.trim();
+
+      if (!collectionAddress || !deliveryAddress) {
+        alert('Please enter both Collection and Delivery addresses!');
+        return;
+      }
+
+      const service = new google.maps.DistanceMatrixService();
+      service.getDistanceMatrix(
+        {
+          origins: [collectionAddress],
+          destinations: [deliveryAddress],
+          travelMode: 'DRIVING',
+        },
+        distanceMatrixCallback
+      );
+    }
+
+    function distanceMatrixCallback(response, status) {
+      if (status !== 'OK') {
+        alert('Error with the Distance Matrix API: ' + status);
+        return;
+      }
+
+      const distanceInfo = response.rows[0].elements[0];
+      if (!distanceInfo || distanceInfo.status === 'ZERO_RESULTS' || distanceInfo.status === 'NOT_FOUND') {
+        alert('Could not find a valid route between the addresses.');
+        return;
+      }
+
+      // ---------------------------
+      // EXTRACT DISTANCE & DURATION
+      // ---------------------------
+      // Distance in meters -> convert to miles
+      const distanceMeters = distanceInfo.distance.value;
+      const distanceMiles = distanceMeters / 1609.34; 
+      const distanceRounded = distanceMiles.toFixed(2);
+
+      // Duration in seconds -> convert to hours
+      const durationSeconds = distanceInfo.duration.value;
+      const durationHours = durationSeconds / 3600; 
+      const durationRounded = durationHours.toFixed(2);
+
+      // ---------------------------------------
+      // COST FORMULA (Adjust the constants below)
+      // ---------------------------------------
+      const baseFee = 65.0;         // £65 flat fee
+      const costPerMile = 2.10;     // £2.10 per mile
+      const oneManHourly = 45.0;    // £45 per hour (1 man)
+      const twoMenHourly = 90.0;    // £90 per hour (2 men = double the 1-man rate)
+
+      // Calculate total cost
+      // For 1 Man:
+      //   Total = baseFee + (costPerMile × distanceMiles) + (oneManHourly × durationHours)
+      const costForOneMan = 
+        baseFee + (distanceMiles * costPerMile) + (oneManHourly * durationHours);
+
+      // For 2 Men:
+      //   Total = baseFee + (costPerMile × distanceMiles) + (twoMenHourly × durationHours)
+      const costForTwoMen = 
+        baseFee + (distanceMiles * costPerMile) + (twoMenHourly * durationHours);
+
+      // --------------------------
+      // UPDATE THE PAGE WITH RESULTS
+      // --------------------------
+      document.getElementById('distance-result').textContent =
+        'Distance: ' + distanceRounded + ' miles';
+      document.getElementById('time-result').textContent =
+        'Driving Time: ' + durationRounded + ' hours';
+
+      document.getElementById('cost-1man').textContent =
+        'Cost (1 Man): £' + costForOneMan.toFixed(2);
+
+      document.getElementById('cost-2men').textContent =
+        'Cost (2 Men): £' + costForTwoMen.toFixed(2);
+
+      // Show the result section
+      document.getElementById('result-section').style.display = 'block';
+    }
+  </script>
+</body>
+</html>
